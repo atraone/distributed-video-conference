@@ -11,7 +11,7 @@ interface PeerConnection {
 
 const MAX_P2P_PARTICIPANTS = 4;
 const TURN_CONFIG_URL = import.meta.env.VITE_TURN_CONFIG_URL || 
-  (import.meta.env.DEV ? 'http://localhost:8080/turn-config' : 'https://video-conference-turn.dvcursorspinup.workers.dev/turn-config');
+  (import.meta.env.DEV ? 'http://localhost:8080/turn-config' : 'https://video-conference-turn.dvccursorspinup.workers.dev/turn-config');
 
 export function useWebRTC(signaling: Signaling | null) {
   const [peers, setPeers] = useState<Record<string, PeerConnection>>({});
@@ -190,20 +190,33 @@ export function useWebRTC(signaling: Signaling | null) {
       switch (message.type) {
         case 'room-joined':
           userIdRef.current = message.userId || '';
-          // Add existing participants
+          // Add existing participants - only create offers if we're the newer joiner
           if (message.participants) {
-            message.participants.forEach(async (p: any) => {
-              if (p.userId && p.userId !== userIdRef.current) {
-                await addPeer(p.userId, true, p.name || 'Unknown', p.role);
+            const participantIds = message.participants.map((p: any) => p.userId).filter((id: string) => id && id !== userIdRef.current);
+            const myIndex = message.participants.findIndex((p: any) => p.userId === userIdRef.current);
+            
+            // Only create offers if there are existing participants and we're not the first
+            if (participantIds.length > 0 && myIndex > 0) {
+              // We're joining after others, so we create offers
+              for (const p of message.participants) {
+                if (p.userId && p.userId !== userIdRef.current) {
+                  await addPeer(p.userId, true, p.name || 'Unknown', p.role);
+                }
               }
-            });
+            }
           }
           break;
 
         case 'user-joined':
           if (message.userId && message.userId !== userIdRef.current) {
-            // New user joined, create offer
-            await addPeer(message.userId, true, message.name || 'Unknown', message.role);
+            // New user joined - only create offer if we were here first
+            // The newer joiner will create offers via room-joined message
+            // This prevents race conditions
+            const existingPeerCount = Object.keys(peers).length;
+            if (existingPeerCount === 0) {
+              // We're the first, so we create offer for the new joiner
+              await addPeer(message.userId, true, message.name || 'Unknown', message.role);
+            }
           }
           break;
 
@@ -235,8 +248,8 @@ export function useWebRTC(signaling: Signaling | null) {
             const pc = peer.pc;
 
             try {
-              // Check connection state before setting remote description
-              if (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer') {
+              // Only handle offer if we're in a state to receive it
+              if (pc.signalingState === 'stable') {
                 await pc.setRemoteDescription(new RTCSessionDescription(message.data));
                 const answer = await pc.createAnswer({
                   offerToReceiveAudio: true,
@@ -244,12 +257,14 @@ export function useWebRTC(signaling: Signaling | null) {
                 });
                 await pc.setLocalDescription(answer);
                 signaling.sendAnswer(message.fromUserId, answer);
-              } else {
-                console.warn(`Cannot handle offer, connection state: ${pc.signalingState}`);
-                // Wait and retry
+              } else if (pc.signalingState === 'have-local-offer') {
+                // We already sent an offer, this is a collision - restart ICE
+                console.warn(`Offer collision detected with ${message.fromUserId}, restarting ICE`);
+                pc.restartIce();
+                // Wait a bit then try again
                 setTimeout(async () => {
                   try {
-                    if (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer') {
+                    if (pc.signalingState === 'stable') {
                       await pc.setRemoteDescription(new RTCSessionDescription(message.data));
                       const answer = await pc.createAnswer({
                         offerToReceiveAudio: true,
@@ -259,9 +274,11 @@ export function useWebRTC(signaling: Signaling | null) {
                       signaling.sendAnswer(message.fromUserId, answer);
                     }
                   } catch (retryError) {
-                    console.error('Retry failed:', retryError);
+                    console.error('Retry after collision failed:', retryError);
                   }
-                }, 500);
+                }, 1000);
+              } else {
+                console.warn(`Cannot handle offer, connection state: ${pc.signalingState}`);
               }
             } catch (error) {
               console.error('Error handling offer:', error);
@@ -274,7 +291,15 @@ export function useWebRTC(signaling: Signaling | null) {
             const pc = peerConnectionsRef.current[message.fromUserId];
             if (pc) {
               try {
-                await pc.setRemoteDescription(new RTCSessionDescription(message.data));
+                // Only set remote description if we're expecting an answer
+                if (pc.signalingState === 'have-local-offer') {
+                  await pc.setRemoteDescription(new RTCSessionDescription(message.data));
+                } else if (pc.signalingState === 'stable') {
+                  // Already connected, ignore duplicate answer
+                  console.warn(`Received answer in stable state from ${message.fromUserId}`);
+                } else {
+                  console.warn(`Cannot handle answer, connection state: ${pc.signalingState}`);
+                }
               } catch (error) {
                 console.error('Error handling answer:', error);
               }
