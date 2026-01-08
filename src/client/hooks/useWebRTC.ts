@@ -11,7 +11,7 @@ interface PeerConnection {
 
 const MAX_P2P_PARTICIPANTS = 4;
 const TURN_CONFIG_URL = import.meta.env.VITE_TURN_CONFIG_URL || 
-  (import.meta.env.DEV ? 'http://localhost:8080/turn-config' : 'https://video-conference-turn.verycosmic.workers.dev/turn-config');
+  (import.meta.env.DEV ? 'http://localhost:8080/turn-config' : 'https://video-conference-turn.dvcursorspinup.workers.dev/turn-config');
 
 export function useWebRTC(signaling: Signaling | null) {
   const [peers, setPeers] = useState<Record<string, PeerConnection>>({});
@@ -126,11 +126,34 @@ export function useWebRTC(signaling: Signaling | null) {
 
     if (isInitiator) {
       try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        signaling.sendOffer(remoteUserId, offer);
+        // Wait for connection to be ready
+        if (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer') {
+          const offer = await pc.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true,
+          });
+          await pc.setLocalDescription(offer);
+          signaling.sendOffer(remoteUserId, offer);
+        } else {
+          console.warn(`Cannot create offer, connection state: ${pc.signalingState}`);
+        }
       } catch (error) {
         console.error('Error creating offer:', error);
+        // Retry after a short delay
+        setTimeout(async () => {
+          try {
+            if (pc.signalingState === 'stable') {
+              const offer = await pc.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true,
+              });
+              await pc.setLocalDescription(offer);
+              signaling.sendOffer(remoteUserId, offer);
+            }
+          } catch (retryError) {
+            console.error('Retry failed:', retryError);
+          }
+        }, 500);
       }
     }
   }, [peers, signaling, createPeerConnection]);
@@ -201,10 +224,34 @@ export function useWebRTC(signaling: Signaling | null) {
             const pc = peer.pc;
 
             try {
-              await pc.setRemoteDescription(new RTCSessionDescription(message.data));
-              const answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
-              signaling.sendAnswer(message.fromUserId, answer);
+              // Check connection state before setting remote description
+              if (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer') {
+                await pc.setRemoteDescription(new RTCSessionDescription(message.data));
+                const answer = await pc.createAnswer({
+                  offerToReceiveAudio: true,
+                  offerToReceiveVideo: true,
+                });
+                await pc.setLocalDescription(answer);
+                signaling.sendAnswer(message.fromUserId, answer);
+              } else {
+                console.warn(`Cannot handle offer, connection state: ${pc.signalingState}`);
+                // Wait and retry
+                setTimeout(async () => {
+                  try {
+                    if (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer') {
+                      await pc.setRemoteDescription(new RTCSessionDescription(message.data));
+                      const answer = await pc.createAnswer({
+                        offerToReceiveAudio: true,
+                        offerToReceiveVideo: true,
+                      });
+                      await pc.setLocalDescription(answer);
+                      signaling.sendAnswer(message.fromUserId, answer);
+                    }
+                  } catch (retryError) {
+                    console.error('Retry failed:', retryError);
+                  }
+                }, 500);
+              }
             } catch (error) {
               console.error('Error handling offer:', error);
             }
