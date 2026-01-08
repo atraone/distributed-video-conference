@@ -1,0 +1,51 @@
+{
+  "name": "distributed-video-conference",
+  "version": "1.0.0",
+  "description": "A distributed video conference system with WebRTC peer-to-peer communication",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "tsx watch src/server/index.ts",
+    "dev:client": "vite",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build:client": "vite build",
+    "start": "node dist/index.js",
+    "lint": "eslint . --ext .ts,.tsx",
+    "type-check": "tsc --noEmit",
+    "deploy:worker:signaling": "wrangler deploy --config wrangler.toml",
+    "deploy:worker:turn": "wrangler deploy --config worker/turn-wrangler.toml",
+    "serve": "node server.js",
+    "launch": "npm run build:client && npm run serve"
+  },
+  "keywords": [
+    "webrtc",
+    "video-conference",
+    "peer-to-peer",
+    "distributed"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@hono/node-server": "^1.19.7",
+    "hono": "^4.6.0",
+    "ws": "^8.19.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.0",
+    "wrangler": "^3.0.0"
+  }
+}

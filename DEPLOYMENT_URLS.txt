@@ -1,0 +1,12 @@
+# Deployment URLs
+
+## Cloudflare Workers
+SIGNALING_WS_URL=wss:///ws
+TURN_CONFIG_URL=/turn-config
+
+## GitHub Pages (after deployment)
+CONFERENCE_URL=https://.github.io//
+
+## GitHub Secrets to Add
+VITE_WS_URL=wss:///ws
+VITE_TURN_CONFIG_URL=/turn-config

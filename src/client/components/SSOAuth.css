@@ -1,0 +1,154 @@
+.sso-auth {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.sso-container {
+  background: white;
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.sso-container h2 {
+  color: #333;
+  margin-bottom: 0.5rem;
+  font-size: 2rem;
+}
+
+.sso-subtitle {
+  color: #666;
+  margin-bottom: 2rem;
+  font-size: 1rem;
+}
+
+.sso-providers {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.sso-btn {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.sso-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.sso-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sso-btn.google {
+  border-color: #4285f4;
+  color: #4285f4;
+}
+
+.sso-btn.google:hover:not(:disabled) {
+  background: #4285f4;
+  color: white;
+}
+
+.sso-btn.github {
+  border-color: #333;
+  color: #333;
+}
+
+.sso-btn.github:hover:not(:disabled) {
+  background: #333;
+  color: white;
+}
+
+.sso-btn.microsoft {
+  border-color: #0078d4;
+  color: #0078d4;
+}
+
+.sso-btn.microsoft:hover:not(:disabled) {
+  background: #0078d4;
+  color: white;
+}
+
+.sso-btn.guest {
+  border-color: #667eea;
+  color: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.sso-btn.guest:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+.sso-icon {
+  font-size: 1.2rem;
+}
+
+.sso-divider {
+  display: flex;
+  align-items: center;
+  margin: 1.5rem 0;
+  color: #999;
+}
+
+.sso-divider::before,
+.sso-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #ddd;
+}
+
+.sso-divider span {
+  padding: 0 1rem;
+  font-size: 0.9rem;
+}
+
+.sso-loading {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.sso-loading p {
+  color: #666;
+  font-size: 0.9rem;
+}
+
