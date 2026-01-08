@@ -67,7 +67,18 @@ export function useWebRTC(signaling: Signaling | null) {
     // Add local stream tracks to peer connection
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current!);
+        try {
+          const sender = pc.getSenders().find(s => s.track?.kind === track.kind);
+          if (sender && sender.track) {
+            sender.replaceTrack(track).catch(err => {
+              console.error(`Error replacing ${track.kind} track:`, err);
+            });
+          } else {
+            pc.addTrack(track, localStreamRef.current!);
+          }
+        } catch (error) {
+          console.error(`Error adding ${track.kind} track:`, error);
+        }
       });
     }
 
@@ -293,14 +304,27 @@ export function useWebRTC(signaling: Signaling | null) {
   const setLocalStream = useCallback((stream: MediaStream | null) => {
     localStreamRef.current = stream;
     // Add tracks to existing peer connections
-    Object.values(peerConnectionsRef.current).forEach((pc) => {
+    Object.entries(peerConnectionsRef.current).forEach(([userId, pc]) => {
       if (stream) {
         stream.getTracks().forEach((track) => {
-          const sender = pc.getSenders().find((s) => s.track?.kind === track.kind);
-          if (sender) {
-            sender.replaceTrack(track);
-          } else {
-            pc.addTrack(track, stream);
+          try {
+            const sender = pc.getSenders().find((s) => s.track?.kind === track.kind);
+            if (sender && sender.track) {
+              sender.replaceTrack(track).catch(err => {
+                console.error(`Error replacing ${track.kind} track for ${userId}:`, err);
+              });
+            } else {
+              pc.addTrack(track, stream);
+            }
+          } catch (error) {
+            console.error(`Error adding ${track.kind} track to ${userId}:`, error);
+          }
+        });
+      } else {
+        // Remove all tracks if stream is null
+        pc.getSenders().forEach(sender => {
+          if (sender.track) {
+            pc.removeTrack(sender);
           }
         });
       }
