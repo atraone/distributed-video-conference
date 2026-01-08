@@ -21,21 +21,32 @@ export function useWebRTC(signaling: Signaling | null) {
   const userIdRef = useRef<string>('');
   const turnConfigRef = useRef<RTCConfiguration | null>(null);
 
-  // Fetch TURN configuration
+  // Fetch TURN configuration (silently fallback to STUN if it fails)
   useEffect(() => {
+    // Set default STUN config immediately
+    turnConfigRef.current = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
+    };
+    
+    // Try to fetch TURN config (non-blocking, silent failure)
     fetch(TURN_CONFIG_URL)
-      .then(res => res.json())
-      .then(config => {
-        turnConfigRef.current = config;
+      .then(res => {
+        if (res.ok) {
+          return res.json();
+        }
+        throw new Error('TURN config not available');
       })
-      .catch(err => {
-        console.error('Failed to fetch TURN config:', err);
-        turnConfigRef.current = {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-          ],
-        };
+      .then(config => {
+        if (config && config.iceServers) {
+          turnConfigRef.current = config;
+        }
+      })
+      .catch(() => {
+        // Silently fallback to STUN - this is expected if TURN is not configured
+        // Connection will still work via P2P with STUN
       });
   }, []);
 
