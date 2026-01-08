@@ -312,9 +312,33 @@ export function useWebRTC(signaling: Signaling | null) {
             const pc = peerConnectionsRef.current[message.fromUserId];
             if (pc) {
               try {
-                await pc.addIceCandidate(new RTCIceCandidate(message.data));
+                // Only add ICE candidate if remote description is set
+                if (pc.remoteDescription) {
+                  await pc.addIceCandidate(new RTCIceCandidate(message.data));
+                } else {
+                  // Queue the candidate to add after remote description is set
+                  console.log(`Queuing ICE candidate for ${message.fromUserId} (waiting for remote description)`);
+                  // Store candidate and add it when remote description is set
+                  const candidate = new RTCIceCandidate(message.data);
+                  // Try again after a short delay
+                  setTimeout(async () => {
+                    try {
+                      if (pc.remoteDescription) {
+                        await pc.addIceCandidate(candidate);
+                      }
+                    } catch (retryError) {
+                      // Ignore if already added or connection closed
+                      if (retryError.name !== 'OperationError' && retryError.name !== 'InvalidStateError') {
+                        console.error('Error adding queued ICE candidate:', retryError);
+                      }
+                    }
+                  }, 500);
+                }
               } catch (error) {
-                console.error('Error adding ICE candidate:', error);
+                // Ignore errors for already-added candidates
+                if (error.name !== 'OperationError' && error.name !== 'InvalidStateError') {
+                  console.error('Error adding ICE candidate:', error);
+                }
               }
             }
           }
