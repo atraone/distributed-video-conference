@@ -10,6 +10,7 @@ interface PeerConnection {
 }
 
 const MAX_P2P_PARTICIPANTS = 4;
+// TURN config URL - use environment variable if set, otherwise use correct worker URL
 const TURN_CONFIG_URL = import.meta.env.VITE_TURN_CONFIG_URL || 
   (import.meta.env.DEV ? 'http://localhost:8080/turn-config' : 'https://video-conference-turn.dvccursorspinup.workers.dev/turn-config');
 
